@@ -18,10 +18,20 @@
   th:attr = add attribute
   th:each = loop
   th:replace = replace
+  td: = table data
 */-->
 
 <form th:action="@{/tickets/create}" th:object="${ticket}" method="POST" class="max-w-lg">
     <!-- Error message display -->
+
+    <!-- Validation error messages -->
+    <div th:if="${#fields.hasErrors('*')}" class="bg-red-100 border border-red-500 text-red-700 p-3 rounded mb-4">
+        <ul>
+            <li th:each="err : ${#fields.errors('*')}" th:text="${err}" />
+        </ul>
+    </div>
+
+
     <div th:if="${errorMessage}" class="bg-red-100 border border-red-500 text-red-700 p-3 rounded mb-4">
         <span th:text="${errorMessage}">Error message goes here</span>
     </div>

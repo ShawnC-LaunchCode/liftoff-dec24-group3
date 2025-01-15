@@ -1,5 +1,6 @@
 package org.taskntech.tech_flow.service;
 
+import jakarta.validation.ValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.taskntech.tech_flow.data.TicketRepository;
@@ -9,6 +10,7 @@ import org.taskntech.tech_flow.models.StatusUpdates;
 import org.taskntech.tech_flow.models.Ticket;
 
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -30,13 +32,10 @@ public class TicketService {
         }
 
         // Read all tickets
-        // Update - Modified to get tickets that are NOT closed.
         public List<Ticket> getAllTickets() { // returns a list type of all tickets called "getAllTickets"
                 List<Ticket> tickets = new ArrayList<>(); // creating an empty list to store the tickets
                 ticketRepository.findAll().forEach(ticket -> { // Iterates over repo/database, returns all tickets and adds them to the list
-                        if (ticket.getStatus() != StatusUpdates.CLOSED) {  // Only add non-closed tickets
-                                tickets.add(ticket);
-                        }
+                        tickets.add(ticket);
                 });
                 return tickets;
         }
@@ -57,18 +56,29 @@ public class TicketService {
         // Update ticket status
         // Using optional<> since it returns null or the ticket
         public Ticket updateTicketStatus(Integer ticketId, StatusUpdates newStatus) {
-                // Fetch the ticket by its Id
+                // Fetch the ticket by its ticketId
                 Optional<Ticket> retrievedTicket = ticketRepository.findById(ticketId);
 
                 // Check if the ticket exists
                 if (retrievedTicket.isPresent()) {
-                        Ticket ticket = retrievedTicket.get();
+                        Ticket ticket = retrievedTicket.get(); // assign the ticket object to the variable ticket
+
+                        // Validate status transition
+                        if (!isValidStatusTransition(ticket.getStatus(), newStatus)) {
+                                throw new ValidationException(" Opps, invalid status transition from " +
+                                        ticket.getStatus() + " to " + newStatus);
+                        }
+
+                        // Store the previous status before updating
+                        ticket.setPreviousStatus(ticket.getStatus());
+
                         // Update the status
                         ticket.setStatus(newStatus);
+                        ticket.setStatusLastUpdated(LocalDateTime.now());
                         ticket.setLastEdited();
+
                         return ticketRepository.save(ticket);
                 } else {
-                        // Created a custom exception folder to handle all exceptions
                         throw new TicketNotFoundException("Ticket not found with ID: " + ticketId);
                 }
         }
@@ -137,5 +147,39 @@ public class TicketService {
 
         public Ticket findTicketById(Integer ticketId) {
                 return ticketRepository.findById(ticketId).orElse(null);
+        }
+
+        // This method is used when a user wants to change the status of a ticket.
+        // It returns a boolean that handles all StatusUpdate ENUMS (not_started, in_progress, delayed, etc.) and checks if they are valid
+        public boolean isValidStatusTransition(StatusUpdates currentStatus, StatusUpdates newStatus) {
+
+                // Adding a method to check if the status transition is valid
+                // This method takes the current and desired new status as parameters
+                switch (currentStatus) { // Evaluates the current ticket status
+                        case NOT_STARTED: // If the current status is NOT_STARTED
+                                // Only allows transition to IN_PROGRESS
+                                return newStatus == StatusUpdates.IN_PROGRESS; // This updates the status to IN_PROGRESS
+
+                        // Only 2 possible transitions from IN_PROGRESS. Either its DELAYED, or RESOLVED
+                        case IN_PROGRESS:
+                                return newStatus == StatusUpdates.DELAYED ||
+                                        newStatus == StatusUpdates.RESOLVED; // OPTIONS: Moves ticket to DELAYED or RESOLVED
+
+                        // Only 2 possible transitions from DELAYED. Either its IN_PROGRESS, or RESOLVED
+                        case DELAYED:
+                                return newStatus == StatusUpdates.IN_PROGRESS ||
+                                        newStatus == StatusUpdates.RESOLVED; // OPTIONS: Moves ticket to IN_PROGRESS or RESOLVED
+
+                        // Added StatusUpdates.RESOLVED because ticket may need to be re-opened by user
+                        case RESOLVED:
+                                return newStatus == StatusUpdates.CLOSED ||
+                                        newStatus == StatusUpdates.IN_PROGRESS; // OPTIONS: Moves ticket to CLOSED or back to IN_PROGRESS
+
+                        // Only 1 possible transition from CLOSED.
+                        case CLOSED:
+                                return false; // Ticket is closed and cant be re-opened.
+                }
+                return false; // IntelliJ forced me to add. I assumed for any unexpected cases, return false.
+
         }
 }

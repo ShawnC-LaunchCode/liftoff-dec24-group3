@@ -13,13 +13,13 @@ public enum StatusUpdates {
         this.displayStatus=value;
     }
 
-    public String getStatus(){
+    public String getDisplayStatus(){
         return displayStatus;
     }
 
     // UPDATE - Added toString method
     @Override
     public String toString() {
-        return displayStatus;
+        return name();
     }
 }

@@ -18,10 +18,18 @@
   th:attr = add attribute
   th:each = loop
   th:replace = replace
+  td: = table data
 */-->
 
 <!-- Form is using max width -->
 <form method="POST" th:action="@{/tickets/edit/{id}(id=${ticket.ticketId})}" th:object="${ticket}" class="max-w-lg">
+
+    <div th:if="${#fields.hasErrors('*')}">
+        <ul>
+            <li th:each="err : ${#fields.errors('*')}" th:text="${err}" class="text-red-600" />
+        </ul>
+    </div>
+
     <!-- If theres an error, display message -->
     <div th:if="${errorMessage}" class="bg-red-100 border border-red-500 text-red-700 p-3 rounded mb-4"
          th:text="${errorMessage}"></div>
@@ -61,8 +69,8 @@
             <td class="p-2">
                 <select id="status" class="w-full p-2 border rounded" th:field="*{status}" required>
                     <option th:each="statusOpt : ${statusValues}"
-                            th:value="${statusOpt}"
-                            th:text="${statusOpt}">
+                            th:value="${statusOpt.name()}"
+                            th:text="${statusOpt.displayStatus}">
                     </option>
                 </select>
             </td>
